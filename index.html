@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FuelLog TH - บันทึกการเติมน้ำมัน</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Prompt & Inter for crisp Thai/Number readability -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Prompt', 'Inter', 'sans-serif'],
+                        num: ['Inter', 'Prompt', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            900: '#064e3b',
+                        },
+                        surface: {
+                            bg: '#f4f6f5',
+                            card: '#ffffff',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-surface-bg text-slate-800 antialiased selection:bg-brand-100 selection:text-brand-900 pb-28">
+
+    <!-- App Container (Centered mobile-first container, looks great on iPhone & Desktop) -->
+    <div class="max-w-md mx-auto min-h-screen flex flex-col relative">
+
+        <!-- Top Header -->
+        <header class="px-5 pt-6 pb-3 flex items-center justify-between sticky top-0 z-20 bg-surface-bg/90 backdrop-blur-md">
+            <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-2xl bg-brand-600 text-white flex items-center justify-center shadow-sm">
+                    <i data-lucide="fuel" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-slate-900 leading-tight">บันทึกเติมน้ำมัน</h1>
+                    <p id="currentMonthLabel" class="text-sm text-slate-500 font-medium">กำลังโหลด...</p>
+                </div>
+            </div>
+            <button onclick="openResetConfirm()" title="รีเซ็ตข้อมูลตัวอย่าง" class="p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 rounded-xl transition active:scale-95">
+                <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+            </button>
+        </header>
+
+        <!-- Main Content -->
+        <main class="px-5 space-y-5 flex-1">
+
+            <!-- 1. Hero Card: Monthly Spend & Comparison -->
+            <section class="bg-gradient-to-br from-brand-700 via-brand-600 to-teal-700 rounded-3xl p-6 text-white shadow-lg shadow-brand-600/20 relative overflow-hidden">
+                <!-- Decorative background circle -->
+                <div class="absolute -right-8 -top-8 w-36 h-36 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+                
+                <div class="relative z-10">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-brand-100 text-base font-medium">ค่าน้ำมันเดือนนี้</span>
+                        <span id="thisMonthCountBadge" class="bg-white/20 text-white text-xs font-semibold px-2.5 py-1 rounded-full">0 ครั้ง</span>
+                    </div>
+
+                    <!-- Big Number -->
+                    <div class="flex items-baseline gap-2 my-1">
+                        <span class="text-2xl font-semibold text-brand-100">฿</span>
+                        <span id="thisMonthTotal" class="text-5xl font-extrabold font-num tracking-tight">0</span>
+                    </div>
+
+                    <!-- Comparison Pill -->
+                    <div class="mt-4 pt-3.5 border-t border-white/15 flex items-center justify-between gap-2">
+                        <div id="comparisonBadge" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/15 text-sm font-medium">
+                            <span id="compText">กำลังคำนวณ...</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="block text-xs text-brand-100">เดือนก่อน</span>
+                            <span id="prevMonthTotal" class="text-base font-bold font-num">฿0</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. Quick Stats Row (Avg km/L & Avg Baht/km) -->
+            <section class="grid grid-cols-2 gap-3.5">
+                <div class="bg-white rounded-3xl p-4 shadow-sm border border-slate-100">
+                    <div class="flex items-center gap-2 text-slate-500 text-sm font-medium mb-1">
+                        <div class="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                            <i data-lucide="gauge" class="w-4 h-4"></i>
+                        </div>
+                        <span>เฉลี่ยระยะทาง</span>
+                    </div>
+                    <div class="flex items-baseline gap-1 mt-1">
+                        <span id="overallKmPerLiter" class="text-3xl font-extrabold font-num text-slate-800">-</span>
+                        <span class="text-sm font-medium text-slate-500">กม./ลิตร</span>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-3xl p-4 shadow-sm border border-slate-100">
+                    <div class="flex items-center gap-2 text-slate-500 text-sm font-medium mb-1">
+                        <div class="w-7 h-7 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                            <i data-lucide="coins" class="w-4 h-4"></i>
+                        </div>
+                        <span>เฉลี่ยค่าใช้จ่าย</span>
+                    </div>
+                    <div class="flex items-baseline gap-1 mt-1">
+                        <span id="overallBahtPerKm" class="text-3xl font-extrabold font-num text-slate-800">-</span>
+                        <span class="text-sm font-medium text-slate-500">บาท/กม.</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. Monthly Bar Chart & Avg km/L Chart -->
+            <section class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">สรุปรายเดือน</h2>
+                        <p class="text-xs text-slate-400">ค่าน้ำมัน (บาท) และอัตราสิ้นเปลืองเฉลี่ย</p>
+                    </div>
+                    <div class="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg">
+                        <span class="w-2 h-2 rounded-full bg-brand-500"></span>
+                        <span>กม./ลิตร</span>
+                    </div>
+                </div>
+
+                <!-- Bar Chart Container -->
+                <div id="monthlyChartContainer" class="grid grid-cols-3 gap-3 items-end pt-2">
+                    <!-- Dynamic bars injected here -->
+                </div>
+            </section>
+
+            <!-- 4. Fuel Logs History List -->
+            <section class="space-y-3">
+                <div class="flex items-center justify-between px-1">
+                    <h2 class="text-lg font-bold text-slate-800">ประวัติการเติมน้ำมัน</h2>
+                    <span id="totalLogsCount" class="text-sm font-medium text-slate-500">0 รายการ</span>
+                </div>
+
+                <div id="logsListContainer" class="space-y-3.5">
+                    <!-- Dynamic log cards injected here -->
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Floating Bottom Action Button (Easy thumb reach on iPhone) -->
+        <div class="fixed bottom-0 left-0 right-0 z-30 pointer-events-none">
+            <div class="max-w-md mx-auto px-5 pb-6 pt-3 bg-gradient-to-t from-surface-bg via-surface-bg/95 to-transparent flex justify-center">
+                <button onclick="openFuelModal()" class="pointer-events-auto w-full py-4 px-6 bg-brand-600 hover:bg-brand-700 active:scale-[0.98] text-white rounded-2xl shadow-xl shadow-brand-600/30 flex items-center justify-center gap-3 text-lg font-bold transition">
+                    <i data-lucide="plus-circle" class="w-6 h-6"></i>
+                    <span>เติมน้ำมัน</span>
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Modal: Add / Edit Fuel Entry -->
+    <div id="fuelModal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-xs transition-opacity">
+        <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl transform transition-transform max-h-[92vh] overflow-y-auto">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between mb-5">
+                <h3 id="modalTitle" class="text-2xl font-bold text-slate-900">บันทึกการเติมน้ำมัน</h3>
+                <button onclick="closeFuelModal()" class="p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 active:scale-95">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <!-- Form -->
+            <form id="fuelForm" onsubmit="handleSaveLog(event)" class="space-y-4">
+                <input type="hidden" id="entryId">
+
+                <!-- Date -->
+                <div>
+                    <label for="entryDate" class="block text-base font-semibold text-slate-700 mb-1.5">วันที่เติม</label>
+                    <input type="date" id="entryDate" required
+                        class="w-full px-4 py-3.5 text-lg font-medium bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition">
+                </div>
+
+                <!-- Odometer -->
+                <div>
+                    <div class="flex justify-between items-baseline mb-1.5">
+                        <label for="entryOdometer" class="text-base font-semibold text-slate-700">เลขไมล์ปัจจุบัน (กม.)</label>
+                        <span id="lastOdometerHint" class="text-xs font-medium text-brand-600"></span>
+                    </div>
+                    <input type="number" id="entryOdometer" inputmode="decimal" step="1" placeholder="เช่น 45680" required
+                        class="w-full px-4 py-3.5 text-xl font-bold font-num bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition">
+                </div>
+
+                <!-- Liters & Amount Grid -->
+                <div class="grid grid-cols-2 gap-3.5">
+                    <div>
+                        <label for="entryLiters" class="block text-base font-semibold text-slate-700 mb-1.5">จำนวนลิตร</label>
+                        <input type="number" id="entryLiters" inputmode="decimal" step="0.01" placeholder="เช่น 32.50" required
+                            class="w-full px-4 py-3.5 text-xl font-bold font-num bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition">
+                    </div>
+                    <div>
+                        <label for="entryAmount" class="block text-base font-semibold text-slate-700 mb-1.5">จำนวนเงิน (บาท)</label>
+                        <input type="number" id="entryAmount" inputmode="decimal" step="0.01" placeholder="เช่น 1150" required
+                            class="w-full px-4 py-3.5 text-xl font-bold font-num bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition">
+                    </div>
+                </div>
+
+                <!-- Live Preview Calculation inside Form -->
+                <div id="livePreviewBox" class="bg-brand-50/70 border border-brand-100 rounded-2xl p-3.5 flex items-center justify-between text-sm">
+                    <span class="text-slate-600 font-medium">ราคาน้ำมันเฉลี่ย:</span>
+                    <span id="previewPricePerLiter" class="font-bold font-num text-brand-700 text-base">0.00 บาท/ลิตร</span>
+                </div>
+
+                <!-- Validation Error Banner -->
+                <div id="formErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl text-sm font-medium"></div>
+
+                <!-- Submit Button -->
+                <div class="pt-2 flex gap-3">
+                    <button type="button" onclick="closeFuelModal()" class="w-1/3 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-lg font-semibold transition active:scale-95">
+                        ยกเลิก
+                    </button>
+                    <button type="submit" class="w-2/3 py-4 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl text-lg font-bold shadow-lg shadow-brand-600/25 transition active:scale-95">
+                        บันทึกข้อมูล
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Custom Confirmation Modal (Replaces alert/confirm) -->
+    <div id="confirmModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-xs p-5">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl text-center">
+            <div id="confirmIconBox" class="w-14 h-14 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="trash-2" class="w-7 h-7"></i>
+            </div>
+            <h4 id="confirmTitle" class="text-xl font-bold text-slate-900 mb-2">ยืนยันการลบรายการ?</h4>
+            <p id="confirmMessage" class="text-base text-slate-500 mb-6">ข้อมูลรายการนี้จะถูกลบออกและคำนวณค่าเฉลี่ยใหม่ทันที</p>
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="closeConfirmModal()" class="py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-base font-semibold transition">
+                    ยกเลิก
+                </button>
+                <button id="confirmActionBtn" class="py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-2xl text-base font-bold shadow-md transition">
+                    ยืนยัน
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-xl text-base font-medium flex items-center gap-2.5 opacity-0 pointer-events-none transition-all duration-300 translate-y-[-10px]">
+        <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400"></i>
+        <span id="toastText">บันทึกสำเร็จ</span>
+    </div>
+
+    <script>
+        // Storage Key
+        const STORAGE_KEY = 'fuellog_th_records_v1';
+
+        // Thai Month Names
+        const THAI_MONTHS_SHORT = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+        const THAI_MONTHS_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+
+        // Application State
+        let fuelLogs = [];
+        let pendingConfirmAction = null;
+
+        /**
+         * Generate 6 realistic sample records spanning the past 2 months relative to device's current date
+         */
+        function generateDefaultSampleData() {
+            const now = new Date();
+            
+            // Helper to format date YYYY-MM-DD safely in local timezone
+            const getPastDateStr = (daysAgo) => {
+                const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo);
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd}`;
+            };
+
+            // Create 6 entries over ~55 days (covering 2 months ago, last month, and this month)
+            // Starting odometer: 42,150 km
+            return [
+                {
+                    id: 'sample-1',
+                    date: getPastDateStr(54),
+                    odometer: 42150,
+                    liters: 34.20,
+                    amount: 1210
+                },
+                {
+                    id: 'sample-2',
+                    date: getPastDateStr(43),
+                    odometer: 42615, // +465 km -> ~13.6 km/L
+                    liters: 34.15,
+                    amount: 1200
+                },
+                {
+                    id: 'sample-3',
+                    date: getPastDateStr(31),
+                    odometer: 43105, // +490 km -> ~14.0 km/L
+                    liters: 35.00,
+                    amount: 1240
+                },
+                {
+                    id: 'sample-4',
+                    date: getPastDateStr(20),
+                    odometer: 43560, // +455 km -> ~13.9 km/L
+                    liters: 32.80,
+                    amount: 1150
+                },
+                {
+                    id: 'sample-5',
+                    date: getPastDateStr(10),
+                    odometer: 44055, // +495 km -> ~14.4 km/L
+                    liters: 34.40,
+                    amount: 1190
+                },
+                {
+                    id: 'sample-6',
+                    date: getPastDateStr(2),
+                    odometer: 44510, // +455 km -> ~14.1 km/L
+                    liters: 32.25,
+                    amount: 1120
+                }
+            ];
+        }
+
+        /**
+         * Load data from localStorage or initialize sample data
+         */
+        function loadData() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed)) {
+                        fuelLogs = parsed;
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.error('Error reading localStorage:', e);
+            }
+            // First time visit: populate 6 sample records
+            fuelLogs = generateDefaultSampleData();
+            saveData();
+        }
+
+        /**
+         * Save data to localStorage
+         */
+        function saveData() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(fuelLogs));
+            } catch (e) {
+                console.error('Error saving to localStorage:', e);
+            }
+        }
+
+        /**
+         * Sort logs chronologically (oldest to newest) and compute distance, km/L, and Baht/km for each entry
+         */
+        function getEnrichedLogs() {
+            // Sort ascending by odometer, then by date
+            const sortedAsc = [...fuelLogs].sort((a, b) => {
+                if (a.odometer !== b.odometer) return a.odometer - b.odometer;
+                return a.date.localeCompare(b.date);
+            });
+
+            return sortedAsc.map((log, index) => {
+                let distance = null;
+                let kmPerLiter = null;
+                let bahtPerKm = null;
+
+                if (index > 0) {
+                    const prevOdo = sortedAsc[index - 1].odometer;
+                    const diff = log.odometer - prevOdo;
+                    if (diff > 0) {
+                        distance = diff;
+                        kmPerLiter = log.liters > 0 ? (distance / log.liters) : null;
+                        bahtPerKm = distance > 0 ? (log.amount / distance) : null;
+                    }
+                }
+
+                return {
+                    ...log,
+                    distance,
+                    kmPerLiter,
+                    bahtPerKm
+                };
+            });
+        }
+
+        /**
+         * Format YYYY-MM-DD into readable Thai date (e.g., "24 พ.ย. 2569")
+         */
+        function formatThaiDate(dateStr) {
+            const [y, m, d] = dateStr.split('-').map(Number);
+            if (!y || !m || !d) return dateStr;
+            const thaiYear = y + 543;
+            return `${d} ${THAI_MONTHS_SHORT[m - 1]} ${thaiYear}`;
+        }
+
+        /**
+         * Format number with commas
+         */
+        function formatNumber(num, decimals = 0) {
+            return Number(num).toLocaleString('th-TH', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
+        }
+
+        /**
+         * Render entire UI (Header, Hero Card, Averages, Chart, and History List)
+         */
+        function renderApp() {
+            const enrichedAsc = getEnrichedLogs();
+            const now = new Date();
+            const currYear = now.getFullYear();
+            const currMonth = now.getMonth(); // 0-indexed
+
+            // Header Month Label
+            document.getElementById('currentMonthLabel').textContent = `${THAI_MONTHS_FULL[currMonth]} ${currYear + 543}`;
+
+            // Helper to get YYYY-MM key
+            const getMonthKey = (year, monthIndex) => {
+                const d = new Date(year, monthIndex, 1);
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            };
+
+            const thisMonthKey = getMonthKey(currYear, currMonth);
+            const prevMonthKey = getMonthKey(currYear, currMonth - 1);
+            const twoMonthsAgoKey = getMonthKey(currYear, currMonth - 2);
+
+            // Group metrics by YYYY-MM
+            const monthlyStats = {};
+            enrichedAsc.forEach(item => {
+                const mKey = item.date.slice(0, 7);
+                if (!monthlyStats[mKey]) {
+                    monthlyStats[mKey] = {
+                        totalAmount: 0,
+                        count: 0,
+                        totalDistance: 0,
+                        totalLitersForEfficiency: 0
+                    };
+                }
+                monthlyStats[mKey].totalAmount += Number(item.amount);
+                monthlyStats[mKey].count += 1;
+                if (item.distance && item.distance > 0) {
+                    monthlyStats[mKey].totalDistance += item.distance;
+                    monthlyStats[mKey].totalLitersForEfficiency += Number(item.liters);
+                }
+            });
+
+            // 1. Update Hero Card (This Month vs Last Month)
+            const thisMonthData = monthlyStats[thisMonthKey] || { totalAmount: 0, count: 0 };
+            const prevMonthData = monthlyStats[prevMonthKey] || { totalAmount: 0, count: 0 };
+
+            document.getElementById('thisMonthTotal').textContent = formatNumber(thisMonthData.totalAmount, 0);
+            document.getElementById('thisMonthCountBadge').textContent = `เติม ${thisMonthData.count} ครั้ง`;
+            document.getElementById('prevMonthTotal').textContent = `฿${formatNumber(prevMonthData.totalAmount, 0)}`;
+
+            const diffAmount = thisMonthData.totalAmount - prevMonthData.totalAmount;
+            const compBadge = document.getElementById('comparisonBadge');
+            const compText = document.getElementById('compText');
+
+            if (prevMonthData.totalAmount === 0 && thisMonthData.totalAmount === 0) {
+                compBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/15 text-sm font-medium text-white';
+                compText.innerHTML = 'ยังไม่มีข้อมูลเปรียบเทียบ';
+            } else if (diffAmount > 0) {
+                compBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-400/25 text-amber-100 text-sm font-semibold';
+                compText.innerHTML = `<i data-lucide="trending-up" class="w-4 h-4"></i> มากกว่าเดือนก่อน ฿${formatNumber(Math.abs(diffAmount), 0)}`;
+            } else if (diffAmount < 0) {
+                compBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-300/25 text-emerald-50 text-sm font-semibold';
+                compText.innerHTML = `<i data-lucide="trending-down" class="w-4 h-4"></i> น้อยกว่าเดือนก่อน ฿${formatNumber(Math.abs(diffAmount), 0)}`;
+            } else {
+                compBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/20 text-white text-sm font-semibold';
+                compText.innerHTML = `<i data-lucide="minus" class="w-4 h-4"></i> เท่ากับเดือนก่อน`;
+            }
+
+            // 2. Update Overall Quick Stats (Avg km/L & Avg Baht/km)
+            let totalValidDist = 0;
+            let totalValidLiters = 0;
+            let totalValidCost = 0;
+
+            enrichedAsc.forEach(item => {
+                if (item.distance && item.distance > 0) {
+                    totalValidDist += item.distance;
+                    totalValidLiters += Number(item.liters);
+                    totalValidCost += Number(item.amount);
+                }
+            });
+
+            const avgKmL = totalValidLiters > 0 ? (totalValidDist / totalValidLiters).toFixed(2) : '-';
+            const avgBahtKm = totalValidDist > 0 ? (totalValidCost / totalValidDist).toFixed(2) : '-';
+
+            document.getElementById('overallKmPerLiter').textContent = avgKmL;
+            document.getElementById('overallBahtPerKm').textContent = avgBahtKm;
+
+            // 3. Render 3-Month Bar Chart (2 months ago, last month, this month)
+            const chartKeys = [twoMonthsAgoKey, prevMonthKey, thisMonthKey];
+            const chartValues = chartKeys.map(k => (monthlyStats[k] ? monthlyStats[k].totalAmount : 0));
+            const maxChartVal = Math.max(...chartValues, 100); // avoid divide by zero
+
+            const chartContainer = document.getElementById('monthlyChartContainer');
+            chartContainer.innerHTML = chartKeys.map((key, idx) => {
+                const [y, m] = key.split('-').map(Number);
+                const monthName = THAI_MONTHS_SHORT[m - 1];
+                const stat = monthlyStats[key] || { totalAmount: 0, totalDistance: 0, totalLitersForEfficiency: 0 };
+                const heightPercent = Math.max(Math.round((stat.totalAmount / maxChartVal) * 100), stat.totalAmount > 0 ? 15 : 6);
+                const isCurrent = idx === 2;
+                const monthAvgKmL = stat.totalLitersForEfficiency > 0
+                    ? (stat.totalDistance / stat.totalLitersForEfficiency).toFixed(1)
+                    : '-';
+
+                return `
+                    <div class="flex flex-col items-center">
+                        <!-- Avg km/L Pill -->
+                        <div class="mb-2 px-2 py-0.5 rounded-lg text-xs font-bold font-num ${monthAvgKmL !== '-' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'}">
+                            ${monthAvgKmL !== '-' ? `${monthAvgKmL} กม./ล.` : 'ไม่มีสถิติ'}
+                        </div>
+
+                        <!-- Amount Label -->
+                        <span class="text-sm font-bold font-num ${isCurrent ? 'text-brand-700' : 'text-slate-700'} mb-1.5">
+                            ฿${formatNumber(stat.totalAmount, 0)}
+                        </span>
+
+                        <!-- Bar Track -->
+                        <div class="w-full h-28 bg-slate-100 rounded-2xl flex items-end p-1 overflow-hidden">
+                            <div style="height: ${heightPercent}%"
+                                 class="w-full rounded-xl transition-all duration-500 ${isCurrent ? 'bg-brand-600 shadow-sm' : 'bg-brand-400/70'}">
+                            </div>
+                        </div>
+
+                        <!-- Month Label -->
+                        <span class="mt-2 text-sm font-semibold ${isCurrent ? 'text-brand-700' : 'text-slate-500'}">
+                            ${monthName} ${isCurrent ? '(นี้)' : ''}
+                        </span>
+                    </div>
+                `;
+            }).join('');
+
+            // 4. Render History List (Newest first)
+            const listContainer = document.getElementById('logsListContainer');
+            const descLogs = [...enrichedAsc].reverse();
+            document.getElementById('totalLogsCount').textContent = `${descLogs.length} รายการ`;
+
+            if (descLogs.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="bg-white rounded-3xl p-8 text-center border border-slate-100">
+                        <div class="w-14 h-14 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                            <i data-lucide="fuel" class="w-7 h-7"></i>
+                        </div>
+                        <p class="text-lg font-semibold text-slate-700">ยังไม่มีประวัติการเติมน้ำมัน</p>
+                        <p class="text-sm text-slate-400 mt-1">กดปุ่ม "เติมน้ำมัน" ด้านล่างเพื่อเริ่มบันทึก</p>
+                    </div>
+                `;
+            } else {
+                listContainer.innerHTML = descLogs.map(log => {
+                    const hasCalc = log.distance !== null && log.distance > 0;
+                    const pricePerLiter = log.liters > 0 ? (log.amount / log.liters).toFixed(2) : '0.00';
+
+                    return `
+                        <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 transition hover:border-brand-200">
+                            <!-- Top Row: Date, Odometer & Action Buttons -->
+                            <div class="flex items-start justify-between gap-2 pb-3 border-b border-slate-100">
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-base font-bold text-slate-800">${formatThaiDate(log.date)}</span>
+                                        <span class="text-xs font-medium px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-num">
+                                            ไมล์ ${formatNumber(log.odometer)} กม.
+                                        </span>
+                                    </div>
+                                    <div class="text-sm text-slate-500 mt-1 font-num">
+                                        เติม <strong class="text-slate-700">${formatNumber(log.liters, 2)}</strong> ลิตร • <strong class="text-slate-800">฿${formatNumber(log.amount, 0)}</strong> <span class="text-xs text-slate-400">(${pricePerLiter} บ./ล.)</span>
+                                    </div>
+                                </div>
+
+                                <!-- Edit / Delete Actions -->
+                                <div class="flex items-center gap-1">
+                                    <button onclick="openFuelModal('${log.id}')" aria-label="แก้ไข" class="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-xl transition active:scale-90">
+                                        <i data-lucide="pencil" class="w-4 h-4"></i>
+                                    </button>
+                                    <button onclick="confirmDeleteLog('${log.id}')" aria-label="ลบ" class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition active:scale-90">
+                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Bottom Row: Calculated Metrics (Distance, km/L, Baht/km) -->
+                            ${hasCalc ? `
+                                <div class="grid grid-cols-3 gap-2 pt-3 text-center">
+                                    <div class="bg-slate-50 rounded-2xl py-2 px-1">
+                                        <span class="block text-xs text-slate-400">วิ่งได้ระยะทาง</span>
+                                        <span class="text-lg font-extrabold font-num text-slate-800">+${formatNumber(log.distance)}</span>
+                                        <span class="text-xs text-slate-500">กม.</span>
+                                    </div>
+                                    <div class="bg-emerald-50/80 rounded-2xl py-2 px-1">
+                                        <span class="block text-xs text-emerald-700/80">อัตราสิ้นเปลือง</span>
+                                        <span class="text-lg font-extrabold font-num text-emerald-700">${log.kmPerLiter.toFixed(2)}</span>
+                                        <span class="text-xs text-emerald-700">กม./ลิตร</span>
+                                    </div>
+                                    <div class="bg-amber-50/80 rounded-2xl py-2 px-1">
+                                        <span class="block text-xs text-amber-800/80">เฉลี่ยค่าใช้จ่าย</span>
+                                        <span class="text-lg font-extrabold font-num text-amber-700">${log.bahtPerKm.toFixed(2)}</span>
+                                        <span class="text-xs text-amber-800">บาท/กม.</span>
+                                    </div>
+                                </div>
+                            ` : `
+                                <div class="pt-3 flex items-center justify-center gap-1.5 text-xs text-slate-400 bg-slate-50/70 rounded-xl py-2 mt-2">
+                                    <i data-lucide="info" class="w-3.5 h-3.5"></i>
+                                    <span>จุดเริ่มต้น (ระบบจะคำนวณกม./ลิตร เมื่อเติมครั้งถัดไป)</span>
+                                </div>
+                            `}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Refresh Lucide icons
+            lucide.createIcons();
+        }
+
+        /**
+         * Open Modal for Adding or Editing a Fuel Record
+         */
+        function openFuelModal(editId = null) {
+            const modal = document.getElementById('fuelModal');
+            const title = document.getElementById('modalTitle');
+            const errorBanner = document.getElementById('formErrorBanner');
+            errorBanner.classList.add('hidden');
+
+            const enriched = getEnrichedLogs();
+            const maxOdo = enriched.length > 0 ? enriched[enriched.length - 1].odometer : 0;
+
+            if (editId) {
+                const record = fuelLogs.find(item => item.id === editId);
+                if (!record) return;
+
+                title.textContent = 'แก้ไขรายการเติมน้ำมัน';
+                document.getElementById('entryId').value = record.id;
+                document.getElementById('entryDate').value = record.date;
+                document.getElementById('entryOdometer').value = record.odometer;
+                document.getElementById('entryLiters').value = record.liters;
+                document.getElementById('entryAmount').value = record.amount;
+                document.getElementById('lastOdometerHint').textContent = '';
+            } else {
+                title.textContent = 'บันทึกการเติมน้ำมัน';
+                document.getElementById('entryId').value = '';
+                
+                // Default to today's local date
+                const now = new Date();
+                const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                document.getElementById('entryDate').value = todayStr;
+                document.getElementById('entryOdometer').value = '';
+                document.getElementById('entryLiters').value = '';
+                document.getElementById('entryAmount').value = '';
+                document.getElementById('lastOdometerHint').textContent = maxOdo > 0 ? `ล่าสุด: ${formatNumber(maxOdo)} กม.` : '';
+            }
+
+            updateLivePricePreview();
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        /**
+         * Close Add/Edit Modal
+         */
+        function closeFuelModal() {
+            const modal = document.getElementById('fuelModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        /**
+         * Update live price per liter preview inside modal
+         */
+        function updateLivePricePreview() {
+            const liters = parseFloat(document.getElementById('entryLiters').value);
+            const amount = parseFloat(document.getElementById('entryAmount').value);
+            const previewEl = document.getElementById('previewPricePerLiter');
+
+            if (liters > 0 && amount > 0) {
+                previewEl.textContent = `${(amount / liters).toFixed(2)} บาท/ลิตร`;
+            } else {
+                previewEl.textContent = '0.00 บาท/ลิตร';
+            }
+        }
+
+        document.getElementById('entryLiters').addEventListener('input', updateLivePricePreview);
+        document.getElementById('entryAmount').addEventListener('input', updateLivePricePreview);
+
+        /**
+         * Handle Form Submit (Add or Update)
+         */
+        function handleSaveLog(event) {
+            event.preventDefault();
+            const errorBanner = document.getElementById('formErrorBanner');
+            errorBanner.classList.add('hidden');
+
+            const id = document.getElementById('entryId').value;
+            const date = document.getElementById('entryDate').value;
+            const odometer = parseFloat(document.getElementById('entryOdometer').value);
+            const liters = parseFloat(document.getElementById('entryLiters').value);
+            const amount = parseFloat(document.getElementById('entryAmount').value);
+
+            if (!date || isNaN(odometer) || odometer <= 0 || isNaN(liters) || liters <= 0 || isNaN(amount) || amount <= 0) {
+                errorBanner.textContent = 'กรุณากรอกข้อมูลตัวเลขให้ถูกต้องและมากกว่า 0';
+                errorBanner.classList.remove('hidden');
+                return;
+            }
+
+            // Prevent duplicate exact odometer values on different records
+            const duplicateOdo = fuelLogs.find(item => item.odometer === odometer && item.id !== id);
+            if (duplicateOdo) {
+                errorBanner.textContent = `เลขไมล์ ${formatNumber(odometer)} กม. มีอยู่ในระบบแล้ว กรุณาตรวจสอบอีกครั้ง`;
+                errorBanner.classList.remove('hidden');
+                return;
+            }
+
+            if (id) {
+                // Update existing
+                const index = fuelLogs.findIndex(item => item.id === id);
+                if (index !== -1) {
+                    fuelLogs[index] = { id, date, odometer, liters, amount };
+                }
+                showToast('แก้ไขข้อมูลเรียบร้อย');
+            } else {
+                // Create new
+                const newRecord = {
+                    id: 'log-' + Date.now(),
+                    date,
+                    odometer,
+                    liters,
+                    amount
+                };
+                fuelLogs.push(newRecord);
+                showToast('บันทึกการเติมน้ำมันแล้ว');
+            }
+
+            saveData();
+            closeFuelModal();
+            renderApp();
+        }
+
+        /**
+         * Trigger Custom Confirmation Modal for Deleting a Log
+         */
+        function confirmDeleteLog(id) {
+            const record = fuelLogs.find(item => item.id === id);
+            if (!record) return;
+
+            document.getElementById('confirmTitle').textContent = 'ลบรายการเติมน้ำมัน?';
+            document.getElementById('confirmMessage').textContent = `วันที่ ${formatThaiDate(record.date)} (ไมล์ ${formatNumber(record.odometer)} กม.) จะถูกลบออกถาวร`;
+            
+            const iconBox = document.getElementById('confirmIconBox');
+            iconBox.className = 'w-14 h-14 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-4';
+            iconBox.innerHTML = '<i data-lucide="trash-2" class="w-7 h-7"></i>';
+
+            const actionBtn = document.getElementById('confirmActionBtn');
+            actionBtn.className = 'py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-2xl text-base font-bold shadow-md transition';
+            actionBtn.textContent = 'ลบรายการ';
+
+            pendingConfirmAction = () => {
+                fuelLogs = fuelLogs.filter(item => item.id !== id);
+                saveData();
+                renderApp();
+                showToast('ลบรายการเรียบร้อย');
+            };
+
+            const modal = document.getElementById('confirmModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            lucide.createIcons();
+        }
+
+        /**
+         * Trigger Custom Confirmation Modal for Resetting to 6 Sample Items
+         */
+        function openResetConfirm() {
+            document.getElementById('confirmTitle').textContent = 'รีเซ็ตข้อมูลตัวอย่าง?';
+            document.getElementById('confirmMessage').textContent = 'ข้อมูลทั้งหมดจะถูกแทนที่ด้วยรายการตัวอย่าง 6 ครั้งในช่วง 2 เดือนที่ผ่านมา';
+
+            const iconBox = document.getElementById('confirmIconBox');
+            iconBox.className = 'w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4';
+            iconBox.innerHTML = '<i data-lucide="rotate-ccw" class="w-7 h-7"></i>';
+
+            const actionBtn = document.getElementById('confirmActionBtn');
+            actionBtn.className = 'py-3.5 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl text-base font-bold shadow-md transition';
+            actionBtn.textContent = 'รีเซ็ตข้อมูล';
+
+            pendingConfirmAction = () => {
+                fuelLogs = generateDefaultSampleData();
+                saveData();
+                renderApp();
+                showToast('รีเซ็ตข้อมูลตัวอย่าง 6 รายการแล้ว');
+            };
+
+            const modal = document.getElementById('confirmModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function closeConfirmModal() {
+            const modal = document.getElementById('confirmModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            pendingConfirmAction = null;
+        }
+
+        document.getElementById('confirmActionBtn').addEventListener('click', () => {
+            if (typeof pendingConfirmAction === 'function') {
+                pendingConfirmAction();
+            }
+            closeConfirmModal();
+        });
+
+        /**
+         * Show brief non-blocking toast message
+         */
+        let toastTimer = null;
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastText').textContent = message;
+            toast.classList.remove('opacity-0', 'translate-y-[-10px]');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-[-10px]');
+                toast.classList.remove('opacity-100', 'translate-y-0');
+            }, 2500);
+        }
+
+        // Initialize App on Load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            renderApp();
+        });
+    </script>
+</body>
+</html>
